@@ -69,10 +69,15 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 function updateIcon(tabId, active) {
-  const path = active
-    ? { 16: 'icons/icon16.png', 48: 'icons/icon48.png' }
-    : { 16: 'icons/icon16.png', 48: 'icons/icon48.png' };
-  chrome.action.setIcon({ tabId, path }).catch(() => {});
+  // Use same icons but set badge to indicate active/inactive state
+  chrome.action.setIcon({
+    tabId,
+    path: { 16: 'icons/icon16.png', 32: 'icons/icon32.png', 48: 'icons/icon48.png', 128: 'icons/icon128.png' },
+  }).catch(() => {});
+  chrome.action.setBadgeText({ tabId, text: active ? 'ON' : '' }).catch(() => {});
+  if (active) {
+    chrome.action.setBadgeBackgroundColor({ tabId, color: '#2DD4BF' }).catch(() => {});
+  }
 }
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {

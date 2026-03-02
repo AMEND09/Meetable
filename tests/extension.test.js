@@ -102,10 +102,19 @@ test.describe('Meetable Extension - Utils', () => {
 });
 
 test.describe('Meetable Extension - Icons', () => {
-  test('all icon PNGs exist', () => {
+  test('all icon PNGs exist and are valid PNG files', () => {
+    // PNG magic bytes: 89 50 4E 47 0D 0A 1A 0A
+    const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
     [16, 32, 48, 128].forEach(size => {
       const iconPath = path.join(EXTENSION_PATH, 'icons', `icon${size}.png`);
       expect(fs.existsSync(iconPath)).toBe(true);
+      const header = Buffer.alloc(8);
+      const fd = fs.openSync(iconPath, 'r');
+      fs.readSync(fd, header, 0, 8, 0);
+      fs.closeSync(fd);
+      expect(header).toEqual(PNG_SIGNATURE);
+      const stat = fs.statSync(iconPath);
+      expect(stat.size).toBeGreaterThan(50);
     });
   });
 });

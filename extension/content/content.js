@@ -48,13 +48,17 @@
   let isDragging = false;
 
   // --- PLATFORM DETECTION ---
+  function matchesHost(hostname, domain) {
+    return hostname === domain || hostname.endsWith('.' + domain);
+  }
+
   function detectPlatform() {
     const host = window.location.hostname;
-    if (host.includes('meet.google.com')) return 'Google Meet';
-    if (host.includes('teams.microsoft.com')) return 'Microsoft Teams';
-    if (host.includes('slack.com')) return 'Slack';
-    if (host.includes('discord.com')) return 'Discord';
-    if (host.includes('zoom.us')) return 'Zoom';
+    if (matchesHost(host, 'meet.google.com')) return 'Google Meet';
+    if (matchesHost(host, 'teams.microsoft.com')) return 'Microsoft Teams';
+    if (matchesHost(host, 'slack.com')) return 'Slack';
+    if (matchesHost(host, 'discord.com')) return 'Discord';
+    if (matchesHost(host, 'zoom.us')) return 'Zoom';
     return 'Unknown';
   }
 
@@ -292,7 +296,7 @@
         const isFinal = result.isFinal;
 
         if (isFinal) {
-          currentSpeakerIdx = (currentSpeakerIdx + 1) % Math.min(3, Object.keys(speakers).length + 1);
+          currentSpeakerIdx = (currentSpeakerIdx + 1) % Math.max(1, Math.min(3, Object.keys(speakers).length));
           const speaker = getSpeaker(currentSpeakerIdx);
           speaker.talkTime++;
           speaker.segments++;
