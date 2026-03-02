@@ -1,0 +1,284 @@
+:root {
+  --surface-base: #0F1117;
+  --surface-raised: #1A1D27;
+  --surface-overlay: #252836;
+  --border-subtle: #2E3244;
+  --text-primary: #F0F2F7;
+  --text-secondary: #8B91A8;
+  --text-disabled: #4A5068;
+  --brand-teal: #2DD4BF;
+  --brand-teal-dim: #1A8A7C;
+  --signal-overlap: #F87171;
+  --signal-uncertain: #FBBF24;
+  --signal-active: #34D399;
+  --signal-info: #60A5FA;
+  --meetable-font-size: 22px;
+}
+
+/* ===== CAPTION OVERLAY ===== */
+#meetable-caption-overlay {
+  position: fixed;
+  z-index: 2147483647;
+  pointer-events: none;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===== PLACEMENT: BOTTOM ===== */
+#meetable-caption-overlay[data-placement="bottom"] {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px;
+}
+
+/* ===== PLACEMENT: SIDE ===== */
+#meetable-caption-overlay[data-placement="side"] {
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 320px;
+  overflow-y: auto;
+  pointer-events: all;
+  padding: 16px 12px;
+  background: rgba(15, 17, 23, 0.65);
+  border-left: 1px solid var(--border-subtle);
+}
+
+/* ===== PLACEMENT: FLOATING ===== */
+#meetable-caption-overlay[data-placement="floating"] {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  width: 400px;
+  pointer-events: all;
+  cursor: grab;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+/* ===== CAPTION BLOCK ===== */
+.meetable-caption-block {
+  background: rgba(37, 40, 54, 0.85);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  animation: meetable-fade-in 120ms ease-out forwards;
+  pointer-events: all;
+  border-left: 3px solid transparent;
+  transition: border-color 200ms ease;
+}
+
+.meetable-caption-block:last-child {
+  margin-bottom: 0;
+}
+
+/* Bottom placement: flush edges */
+#meetable-caption-overlay[data-placement="bottom"] .meetable-caption-block {
+  border-radius: 0;
+  background: rgba(15, 17, 23, 0.85);
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+#meetable-caption-overlay[data-placement="bottom"] .meetable-caption-block:last-child {
+  border-bottom: none;
+}
+
+/* Overlap highlight */
+.meetable-caption-block.overlap-active {
+  border-left: 3px solid var(--signal-overlap);
+}
+
+/* Interim (in-progress) block */
+.meetable-caption-block.interim .meetable-caption-text {
+  color: var(--text-secondary);
+}
+
+/* Intent styling */
+.meetable-caption-block[data-intent="question"] {
+  border-left: 3px solid var(--signal-info);
+}
+
+.meetable-caption-block[data-intent="action"] {
+  border-left: 3px solid var(--signal-active);
+}
+
+/* ===== CAPTION HEADER ===== */
+.meetable-caption-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+/* ===== SPEAKER TAG ===== */
+.meetable-speaker-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 4px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 4px;
+  white-space: nowrap;
+  line-height: 1;
+  cursor: pointer;
+  transition: filter 150ms ease;
+}
+
+.meetable-speaker-tag:hover {
+  filter: brightness(1.15);
+}
+
+/* ===== TIMESTAMP ===== */
+.meetable-timestamp {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
+/* ===== INTENT ICON ===== */
+.meetable-intent-icon {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ===== CAPTION TEXT ===== */
+.meetable-caption-text {
+  font-size: var(--meetable-font-size, 22px);
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--text-primary);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 72ch;
+}
+
+/* ===== OVERLAP WARNING ===== */
+.meetable-overlap-warning {
+  position: sticky;
+  top: 0;
+  background: rgba(248, 113, 113, 0.15);
+  border: 1px solid #F87171;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #F87171;
+  margin-bottom: 8px;
+  animation: meetable-slide-in 180ms ease-out forwards;
+  pointer-events: all;
+  z-index: 1;
+}
+
+#meetable-caption-overlay[data-placement="bottom"] .meetable-overlap-warning {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  border-radius: 0;
+  margin-bottom: 0;
+}
+
+/* ===== FLASH BORDER ===== */
+.meetable-flash-border {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  border: 4px solid transparent;
+  z-index: 2147483646;
+  border-radius: 0;
+  transition: border-color 200ms ease-in-out;
+}
+
+/* ===== CONTROL BAR ===== */
+#meetable-control-bar {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 2147483647;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 8px;
+  display: flex;
+  gap: 4px;
+  pointer-events: all;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.meetable-ctrl-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+  flex-shrink: 0;
+}
+
+.meetable-ctrl-btn:hover {
+  background: var(--surface-overlay);
+  color: var(--text-primary);
+}
+
+.meetable-ctrl-btn:focus-visible {
+  outline: 2px solid var(--brand-teal);
+  outline-offset: 2px;
+}
+
+.meetable-ctrl-btn.active {
+  color: var(--brand-teal);
+}
+
+/* ===== KEYFRAMES ===== */
+@keyframes meetable-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes meetable-slide-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes meetable-flash {
+  0%   { opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ===== REDUCED MOTION ===== */
+@media (prefers-reduced-motion: reduce) {
+  .meetable-caption-block {
+    animation: meetable-fade-in 60ms ease-out forwards;
+  }
+
+  .meetable-overlap-warning {
+    animation: none;
+  }
+
+  .meetable-flash-border {
+    transition: none;
+  }
+
+  .meetable-speaker-tag,
+  .meetable-ctrl-btn {
+    transition: none;
+  }
+}

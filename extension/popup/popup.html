@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meetable</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <span class="logo">Meetable</span>
+      <span class="tagline">Every word, every speaker, every meeting.</span>
+    </div>
+    <div class="header-icon" aria-hidden="true">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--brand-teal)" stroke-width="1.75">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+    </div>
+  </header>
+
+  <!-- Status Bar -->
+  <div class="status-bar" role="status" aria-live="polite">
+    <span id="status-dot" class="status-dot offline" aria-hidden="true"></span>
+    <span id="status-text" class="status-text">Offline</span>
+    <span id="platform-info" class="platform-info"></span>
+  </div>
+
+  <!-- Main Toggle Section -->
+  <div class="section">
+    <div class="section-row">
+      <label class="section-label" for="main-toggle">Meetable</label>
+      <button
+        id="main-toggle"
+        class="toggle-switch"
+        role="switch"
+        aria-checked="false"
+        aria-label="Enable Meetable"
+      >
+        <span class="toggle-thumb"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Quick Controls -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-label">Quick Controls</span>
+    </div>
+
+    <!-- Caption Size -->
+    <div class="control-row">
+      <label class="control-label" for="font-size-slider">Caption Size</label>
+      <div class="control-inline">
+        <input
+          type="range"
+          id="font-size-slider"
+          min="14"
+          max="48"
+          step="1"
+          value="22"
+          aria-label="Caption font size"
+        />
+        <span id="font-size-value" class="range-value">22px</span>
+      </div>
+    </div>
+
+    <!-- Caption Placement -->
+    <div class="control-row">
+      <label class="control-label" for="placement-select">Placement</label>
+      <select id="placement-select" aria-label="Caption placement">
+        <option value="bottom">Bottom Overlay</option>
+        <option value="side">Side Panel</option>
+        <option value="floating">Floating Window</option>
+      </select>
+    </div>
+
+    <!-- Profile -->
+    <div class="control-row">
+      <label class="control-label" for="profile-select">Profile</label>
+      <select id="profile-select" aria-label="Accessibility profile">
+        <option value="caption-only">Caption Only</option>
+        <option value="lip-reader">Lip-reader</option>
+        <option value="minimal">Minimal</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Speaker Activity Bar -->
+  <div class="section">
+    <div class="section-label">Speaker Activity</div>
+    <div id="speaker-bar" class="speaker-bar" role="img" aria-label="Speaker activity visualization"></div>
+  </div>
+
+  <!-- Open Settings -->
+  <div class="settings-link">
+    <button id="open-settings" aria-label="Open full settings page">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+      Open Full Settings
+    </button>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

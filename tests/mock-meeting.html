@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mock Meeting - Meetable Test</title>
+  <style>
+    body { margin: 0; background: #202124; color: white; font-family: system-ui; }
+    .meeting-container { display: flex; flex-direction: column; height: 100vh; }
+    .video-grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 8px; background: #202124; }
+    .video-tile { background: #3c4043; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; min-height: 200px; }
+    .video-tile video { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
+    .participant-name { position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.6); padding: 4px 8px; border-radius: 4px; font-size: 13px; }
+    .controls { height: 80px; background: #202124; display: flex; align-items: center; justify-content: center; gap: 16px; }
+    .ctrl-btn { width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .ctrl-btn.active { background: #3c4043; color: white; }
+    .ctrl-btn.danger { background: #ea4335; color: white; }
+    .test-controls { position: fixed; top: 16px; left: 16px; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px; }
+    .test-controls button { display: block; margin: 4px 0; padding: 6px 12px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div class="meeting-container">
+    <div class="video-grid">
+      <div class="video-tile" data-participant="alice">
+        <video id="video-alice" autoplay muted playsinline></video>
+        <div class="participant-name">Alice Johnson</div>
+      </div>
+      <div class="video-tile" data-participant="bob">
+        <video id="video-bob" autoplay muted playsinline></video>
+        <div class="participant-name">Bob Smith</div>
+      </div>
+      <div class="video-tile" data-participant="carol">
+        <video id="video-carol" autoplay muted playsinline></video>
+        <div class="participant-name">Carol Davis</div>
+      </div>
+      <div class="video-tile" data-participant="self">
+        <video id="video-self" autoplay muted playsinline></video>
+        <div class="participant-name">You</div>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="ctrl-btn active" id="btn-mic" aria-label="Toggle microphone">🎤</button>
+      <button class="ctrl-btn active" id="btn-cam" aria-label="Toggle camera">📷</button>
+      <button class="ctrl-btn danger" id="btn-leave" aria-label="Leave meeting">📞</button>
+    </div>
+  </div>
+
+  <div class="test-controls" id="test-controls">
+    <strong style="color:white;font-size:12px;">Test Controls</strong>
+    <button id="test-inject-caption" data-testid="inject-caption">Simulate Caption</button>
+    <button id="test-overlap" data-testid="trigger-overlap">Trigger Overlap</button>
+    <button id="test-toggle" data-testid="toggle-extension">Toggle Extension</button>
+  </div>
+
+  <script>
+    // Mock meeting page utilities for testing
+    window.meetableTestUtils = {
+      injectCaption(speaker, text) {
+        window.dispatchEvent(new CustomEvent('meetable-test-caption', { detail: { speaker, text } }));
+      },
+      triggerOverlap() {
+        window.dispatchEvent(new CustomEvent('meetable-test-overlap'));
+      },
+    };
+
+    document.getElementById('test-inject-caption').addEventListener('click', () => {
+      window.meetableTestUtils.injectCaption('Test Speaker', 'This is a test caption for Meetable.');
+    });
+    document.getElementById('test-overlap').addEventListener('click', () => {
+      window.meetableTestUtils.triggerOverlap();
+    });
+  </script>
+</body>
+</html>

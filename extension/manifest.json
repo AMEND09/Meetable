@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "Meetable",
+  "version": "1.0.0",
+  "description": "Accessibility extension for Deaf & Hard-of-Hearing meeting users — live captions, speaker labels, and visual alerts.",
+  "permissions": ["storage", "tabs", "scripting", "activeTab", "webNavigation", "contextMenus"],
+  "host_permissions": [
+    "https://meet.google.com/*",
+    "https://teams.microsoft.com/*",
+    "https://app.slack.com/*",
+    "https://discord.com/*",
+    "https://zoom.us/*"
+  ],
+  "content_scripts": [{
+    "matches": [
+      "https://meet.google.com/*",
+      "https://teams.microsoft.com/*",
+      "https://app.slack.com/*",
+      "https://discord.com/*",
+      "https://zoom.us/*"
+    ],
+    "js": ["content/content.js"],
+    "css": ["content/content.css"],
+    "run_at": "document_idle"
+  }],
+  "background": { "service_worker": "background/background.js" },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_page": "options/options.html",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "web_accessible_resources": [{
+    "resources": ["icons/*", "content/content.js", "content/content.css", "utils/*.js"],
+    "matches": ["<all_urls>"]
+  }]
+}
