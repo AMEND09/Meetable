@@ -18,6 +18,8 @@ const DEFAULT_SETTINGS = {
   theme: 'dark',
   speakerSensitivity: 0.7,
   overlapSensitivity: 0.7,
+  mouthSpeed: 1.0,
+  audioAlerts: true,
 };
 
 const MEETING_PLATFORMS = {
@@ -42,6 +44,9 @@ const placementSelect = document.getElementById('placement-select');
 const profileSelect = document.getElementById('profile-select');
 const openSettingsBtn = document.getElementById('open-settings');
 const speakerBar = document.getElementById('speaker-bar');
+const mouthSpeedSlider = document.getElementById('mouth-speed-slider');
+const mouthSpeedValue = document.getElementById('mouth-speed-value');
+const audioAlertsToggle = document.getElementById('audio-alerts-toggle');
 
 // ===== PLATFORM DETECTION =====
 function detectPlatformFromUrl(url) {
@@ -79,6 +84,11 @@ function populateForm(settings) {
 
   fontSizeSlider.value = settings.fontSize;
   fontSizeValue.textContent = settings.fontSize + 'px';
+
+  mouthSpeedSlider.value = settings.mouthSpeed;
+  mouthSpeedValue.textContent = settings.mouthSpeed.toFixed(1) + 'x';
+
+  audioAlertsToggle.setAttribute('aria-checked', String(settings.audioAlerts));
 
   placementSelect.value = settings.captionPlacement;
   profileSelect.value = settings.profile;
@@ -144,7 +154,40 @@ placementSelect.addEventListener('change', () => {
 
 // Profile select
 profileSelect.addEventListener('change', () => {
-  saveAndSync({ profile: profileSelect.value });
+  const profile = profileSelect.value;
+  const patch = { profile };
+
+  if (profile === 'lip-reader') {
+    patch.faceFocusMode = true;
+    patch.mouthSpeed = 0.5;
+    patch.fontSize = 28;
+    patch.showSpeakerLabels = true;
+  } else if (profile === 'minimal') {
+    patch.faceFocusMode = false;
+    patch.showSpeakerLabels = false;
+    patch.visualFlashAlerts = false;
+  } else if (profile === 'caption-only') {
+    patch.faceFocusMode = false;
+    patch.mouthSpeed = 1.0;
+    patch.showSpeakerLabels = true;
+  }
+  
+  saveAndSync(patch);
+  populateForm({ ...currentSettings, ...patch });
+});
+
+// Mouth speed slider
+mouthSpeedSlider.addEventListener('input', () => {
+  const speed = parseFloat(mouthSpeedSlider.value);
+  mouthSpeedValue.textContent = speed.toFixed(1) + 'x';
+  saveAndSync({ mouthSpeed: speed });
+});
+
+// Audio alerts toggle
+audioAlertsToggle.addEventListener('click', () => {
+  const newEnabled = audioAlertsToggle.getAttribute('aria-checked') !== 'true';
+  audioAlertsToggle.setAttribute('aria-checked', String(newEnabled));
+  saveAndSync({ audioAlerts: newEnabled });
 });
 
 // Open settings

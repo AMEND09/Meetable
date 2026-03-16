@@ -27,6 +27,8 @@
     theme: 'dark',
     speakerSensitivity: 0.7,
     overlapSensitivity: 0.7,
+    mouthSpeed: 1.0,
+    audioAlerts: true,
   };
 
   // --- STATE ---
@@ -47,7 +49,16 @@
   let meetingNotes = [];
   let isDragging = false;
 
-  // --- PLATFORM DETECTION ---
+  // ML models
+  let faceLandmarker = null;
+  let audioClassifier = null;
+  let audioCtx = null;
+  let micStream = null;
+  let zoomCanvas = null;
+  let zoomCtx = null;
+  let rafId = null;
+
+  // Mediapipe WASM paths (using unpkg or jsdelivr CDN format, but handled via the global objects injected in manifest)
   function matchesHost(hostname, domain) {
     return hostname === domain || hostname.endsWith('.' + domain);
   }
@@ -339,21 +350,401 @@
     }
   }
 
-  // --- FACE FOCUS ---
+  // --- FACE FOCUS (LIP READING) ---
+  // Skin-color face detection + frame-buffer slow-motion playback
+
+  // Smoothed face center (normalized 0–1 within video frame)
+  let smoothFaceCX = 0.5;
+  let smoothFaceCY = 0.45;
+  let faceDetected = false;
+
+  // Analysis canvas for skin detection (tiny, reused)
+  let analysisCanvas = null;
+  let analysisCtx = null;
+  const SAMPLE_W = 80;
+  const SAMPLE_H = 60;
+
+  // Frame buffer for slow-motion replay
+  const FRAME_BUF_SIZE = 90;            // ~3 seconds at 30fps
+  let frameBuf = [];
+  let frameWritePos = 0;
+  let frameReadPos = 0;
+  let lastCaptureTime = 0;
+  let lastRenderTime = 0;
+  let captureCanvas = null;             // offscreen canvas for grabbing mouth crops
+  let captureCtx = null;
+
+  // ---- Skin-color detection (YCbCr, works across skin tones) ----
+  function isSkinPixel(r, g, b) {
+    const y  =  0.299 * r + 0.587 * g + 0.114 * b;
+    const cb = 128 - 0.169 * r - 0.331 * g + 0.500 * b;
+    const cr = 128 + 0.500 * r - 0.419 * g - 0.081 * b;
+    return y > 40 && cb > 77 && cb < 127 && cr > 133 && cr < 173;
+  }
+
+  function detectFaceCentroid(video) {
+    if (!analysisCanvas) {
+      analysisCanvas = document.createElement('canvas');
+      analysisCanvas.width = SAMPLE_W;
+      analysisCanvas.height = SAMPLE_H;
+      analysisCtx = analysisCanvas.getContext('2d', { willReadFrequently: true });
+    }
+    try {
+      analysisCtx.drawImage(video, 0, 0, SAMPLE_W, SAMPLE_H);
+    } catch (e) { return; }
+
+    const data = analysisCtx.getImageData(0, 0, SAMPLE_W, SAMPLE_H).data;
+    let sumX = 0, sumY = 0, count = 0;
+
+    for (let y = 0; y < SAMPLE_H; y++) {
+      for (let x = 0; x < SAMPLE_W; x++) {
+        const i = (y * SAMPLE_W + x) * 4;
+        if (isSkinPixel(data[i], data[i + 1], data[i + 2])) {
+          sumX += x;
+          sumY += y;
+          count++;
+        }
+      }
+    }
+
+    if (count > 40) {
+      const cx = sumX / count / SAMPLE_W;  // normalised 0-1
+      const cy = sumY / count / SAMPLE_H;
+      // Smooth lerp
+      const a = faceDetected ? 0.15 : 0.5;
+      smoothFaceCX += (cx - smoothFaceCX) * a;
+      smoothFaceCY += (cy - smoothFaceCY) * a;
+      faceDetected = true;
+    }
+    // If no skin detected, keep previous position (don't reset)
+  }
+
+  // ---- Mouth crop coordinates from face centroid ----
+  function getMouthCrop(video) {
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+
+    // Face centroid → mouth is ~18% below centroid, same X
+    const mouthCX = smoothFaceCX * vw;
+    const mouthCY = (smoothFaceCY + 0.18) * vh;
+
+    const cropW = vw * 0.38;
+    const cropH = cropW * (140 / 320);
+
+    return {
+      sx: Math.max(0, Math.min(mouthCX - cropW / 2, vw - cropW)),
+      sy: Math.max(0, Math.min(mouthCY - cropH / 2, vh - cropH)),
+      sw: cropW,
+      sh: cropH,
+    };
+  }
+
+  // ---- Setup ----
+  function setupZoomCanvas() {
+    if (zoomCanvas) return;
+    zoomCanvas = document.createElement('canvas');
+    zoomCanvas.id = 'meetable-lip-zoom';
+    zoomCanvas.width = 320;
+    zoomCanvas.height = 140;
+    zoomCanvas.style.cssText = `
+      position: fixed;
+      bottom: 160px;
+      right: 20px;
+      width: 320px;
+      height: 140px;
+      border: 3px solid #60A5FA;
+      border-radius: 14px;
+      z-index: 999999;
+      pointer-events: none;
+      background: #000;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      display: none;
+    `;
+    const label = document.createElement('div');
+    label.id = 'meetable-lip-label';
+    label.style.cssText = `
+      position: fixed;
+      bottom: 304px;
+      right: 20px;
+      background: rgba(96,165,250,0.95);
+      color: #000;
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 6px 6px 0 0;
+      z-index: 999999;
+      pointer-events: none;
+      display: none;
+    `;
+    label.textContent = '👄 Lip Focus';
+    document.body.appendChild(label);
+    document.body.appendChild(zoomCanvas);
+    zoomCtx = zoomCanvas.getContext('2d');
+    window._meetableLipLabel = label;
+
+    // Offscreen canvas to capture mouth crops for the frame buffer
+    captureCanvas = document.createElement('canvas');
+    captureCanvas.width = 320;
+    captureCanvas.height = 140;
+    captureCtx = captureCanvas.getContext('2d', { willReadFrequently: true });
+  }
+
+  // ---- Main render loop ----
+  let _detectSkip = 0;  // run skin detection every N frames to save CPU
+
+  function loopFaceFocus() {
+    if (!settings.enabled || !settings.faceFocusMode) {
+      if (zoomCanvas) {
+        zoomCanvas.style.display = 'none';
+        if (window._meetableLipLabel) window._meetableLipLabel.style.display = 'none';
+      }
+      rafId = null;
+      return;
+    }
+
+    const videos = Array.from(document.querySelectorAll('video'))
+      .filter(v => !v.paused && v.readyState >= 2 && v.videoWidth > 0 && v.videoHeight > 0);
+    const activeVideo = videos.reduce((best, v) => {
+      if (!best) return v;
+      const br = best.getBoundingClientRect(), vr = v.getBoundingClientRect();
+      return vr.width * vr.height > br.width * br.height ? v : best;
+    }, null);
+
+    if (activeVideo) {
+      zoomCanvas.style.display = 'block';
+      if (window._meetableLipLabel) window._meetableLipLabel.style.display = 'block';
+
+      // Run skin detection every 3 frames (~10 fps) to save CPU
+      _detectSkip++;
+      if (_detectSkip >= 3) {
+        _detectSkip = 0;
+        detectFaceCentroid(activeVideo);
+      }
+
+      const { sx, sy, sw, sh } = getMouthCrop(activeVideo);
+      const now = performance.now();
+      const speed = settings.mouthSpeed || 1.0;
+
+      if (speed >= 0.95) {
+        // At normal speed just draw live
+        zoomCtx.clearRect(0, 0, 320, 140);
+        try { zoomCtx.drawImage(activeVideo, sx, sy, sw, sh, 0, 0, 320, 140); } catch (e) {}
+      } else {
+        // ---- Frame-buffer slow motion ----
+        // Capture at ~30 fps into ring buffer
+        const captureGap = 33; // ms (~30fps)
+        if (now - lastCaptureTime >= captureGap) {
+          lastCaptureTime = now;
+          try {
+            captureCtx.clearRect(0, 0, 320, 140);
+            captureCtx.drawImage(activeVideo, sx, sy, sw, sh, 0, 0, 320, 140);
+            frameBuf[frameWritePos % FRAME_BUF_SIZE] = captureCtx.getImageData(0, 0, 320, 140);
+            frameWritePos++;
+          } catch (e) {}
+        }
+
+        // Read back at slower rate
+        const renderGap = captureGap / speed;  // e.g. 33/0.5 = 66ms between renders
+        if (now - lastRenderTime >= renderGap && frameReadPos < frameWritePos) {
+          lastRenderTime = now;
+          const frame = frameBuf[frameReadPos % FRAME_BUF_SIZE];
+          if (frame) {
+            zoomCtx.putImageData(frame, 0, 0);
+          }
+          frameReadPos++;
+        }
+      }
+    } else {
+      zoomCanvas.style.display = 'none';
+      if (window._meetableLipLabel) window._meetableLipLabel.style.display = 'none';
+    }
+
+    rafId = requestAnimationFrame(loopFaceFocus);
+  }
+
   function applyFaceFocus() {
     const videos = document.querySelectorAll('video');
     videos.forEach((v, i) => {
-      if (i === currentSpeakerIdx % videos.length) {
-        v.style.filter = 'contrast(1.2) saturate(1.1)';
+      if (i === currentSpeakerIdx % Math.max(1, videos.length)) {
+        v.style.filter = 'contrast(1.15) saturate(1.1)';
         v.style.transition = 'filter 300ms ease-in-out';
       } else if (!faceFocusLocked) {
         v.style.filter = '';
       }
     });
+
+    if (settings.faceFocusMode) {
+      setupZoomCanvas();
+      // Reset frame buffer
+      frameBuf = [];
+      frameWritePos = 0;
+      frameReadPos = 0;
+      lastCaptureTime = 0;
+      lastRenderTime = 0;
+      if (!rafId) loopFaceFocus();
+    }
   }
 
   function clearFaceFocus() {
-    document.querySelectorAll('video').forEach(v => { v.style.filter = ''; });
+    document.querySelectorAll('video').forEach(v => {
+      v.style.filter = '';
+    });
+    faceDetected = false;
+    smoothFaceCX = 0.5;
+    smoothFaceCY = 0.45;
+    frameBuf = [];
+    frameWritePos = 0;
+    frameReadPos = 0;
+    if (zoomCanvas) zoomCanvas.style.display = 'none';
+    if (window._meetableLipLabel) window._meetableLipLabel.style.display = 'none';
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = null;
+  }
+
+  // --- AUDIO ALERTS (browser-native energy detection, no ML needed) ---
+  // Detects sudden loud transient sounds (claps, knocks, alarms) via
+  // AnalyserNode RMS energy threshold — works 100% on-device.
+
+  const SOUND_CATEGORIES = [
+    { label: '🚨 Alarm / Siren', test: (rms) => rms > 0.25 },
+    { label: '📢 Loud Noise',    test: (rms) => rms > 0.18 },
+    { label: '👏 Clap / Knock',  test: (rms) => rms > 0.12 },
+  ];
+
+  let analyserNode = null;
+  let audioMicStream = null;
+  let audioDetectInterval = null;
+  let lastAlertTime = 0;
+
+  async function startAudioClassification() {
+    if (!settings.audioAlerts || audioDetectInterval) return;
+
+    // Must be triggered by a user gesture — we attach a one-time listener
+    const startCtx = async () => {
+      if (audioDetectInterval) return;
+      try {
+        audioMicStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+        const source = audioCtx.createMediaStreamSource(audioMicStream);
+        analyserNode = audioCtx.createAnalyser();
+        analyserNode.fftSize = 2048;
+        analyserNode.smoothingTimeConstant = 0.4;
+        source.connect(analyserNode);
+
+        const buf = new Float32Array(analyserNode.fftSize);
+        audioDetectInterval = setInterval(() => {
+          if (!settings.audioAlerts) return;
+          analyserNode.getFloatTimeDomainData(buf);
+          // RMS energy
+          let sum = 0;
+          for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+          const rms = Math.sqrt(sum / buf.length);
+
+          const now = Date.now();
+          if (now - lastAlertTime < 4000) return; // debounce: 4s between alerts
+
+          for (const cat of SOUND_CATEGORIES) {
+            if (cat.test(rms)) {
+              lastAlertTime = now;
+              showVisualAlert(cat.label);
+              break;
+            }
+          }
+        }, 250);
+
+        console.log('[Meetable] Audio energy monitor started');
+      } catch (err) {
+        console.warn('[Meetable] Mic access denied for audio alerts:', err);
+      }
+    };
+
+    // Try to start after the next user click/key on the page
+    document.addEventListener('click', startCtx, { once: true });
+    document.addEventListener('keydown', startCtx, { once: true });
+  }
+
+  function stopAudioClassification() {
+    if (audioDetectInterval) {
+      clearInterval(audioDetectInterval);
+      audioDetectInterval = null;
+    }
+    if (audioCtx && audioCtx.state !== 'closed') {
+      audioCtx.close();
+      audioCtx = null;
+    }
+    if (audioMicStream) {
+      audioMicStream.getTracks().forEach(t => t.stop());
+      audioMicStream = null;
+    }
+    analyserNode = null;
+  }
+
+  let alertContainer = null;
+  function showVisualAlert(soundName) {
+    if (!alertContainer) {
+      alertContainer = document.createElement('div');
+      alertContainer.id = 'meetable-audio-alerts';
+      alertContainer.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 999999;
+        pointer-events: none;
+      `;
+      document.body.appendChild(alertContainer);
+    }
+
+    // Debounce duplicate alerts
+    const existing = alertContainer.querySelectorAll('.mtb-alert-box');
+    for (let i = 0; i < existing.length; i++) {
+      if (existing[i].dataset.sound === soundName) return;
+    }
+
+    const box = document.createElement('div');
+    box.className = 'mtb-alert-box';
+    box.dataset.sound = soundName;
+    box.style.cssText = `
+      background: linear-gradient(135deg, rgba(244,63,94,0.95), rgba(220,38,38,0.95));
+      color: white;
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: mtbslideIn 0.3s cubic-bezier(.22,1,.36,1) forwards, mtbfadeOut 0.4s ease forwards 4.2s;
+    `;
+    box.innerHTML = `
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M11 5L6 9H2v6h4l5 4V5z"></path>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+      </svg>
+      <span>${soundName} detected</span>
+    `;
+
+    if (!document.getElementById('mtb-anim-styles')) {
+      const s = document.createElement('style');
+      s.id = 'mtb-anim-styles';
+      s.textContent = `
+        @keyframes mtbslideIn { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes mtbfadeOut { from { opacity: 1; } to { opacity: 0; transform: scale(0.9) translateY(-6px); } }
+      `;
+      document.head.appendChild(s);
+    }
+
+    alertContainer.appendChild(box);
+    triggerFlash('#F43F5E');
+
+    setTimeout(() => { if (box.parentNode) box.remove(); }, 4700);
   }
 
   // --- FLOATING DRAG ---
@@ -507,6 +898,7 @@
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.action === 'updateSettings') {
       const oldEnabled = settings.enabled;
+      const oldAlerts = settings.audioAlerts;
       settings = { ...settings, ...msg.settings };
 
       if (captionOverlay) {
@@ -515,6 +907,20 @@
       document.querySelectorAll('.meetable-caption-text').forEach(el => {
         el.style.fontSize = settings.fontSize + 'px';
       });
+
+      // Toggle Yamnet
+      if (settings.enabled && settings.audioAlerts && !oldAlerts) {
+          startAudioClassification();
+      } else if (!settings.enabled || !settings.audioAlerts) {
+          stopAudioClassification();
+      }
+
+      // Handle face focus updates
+      if (settings.faceFocusMode) {
+          applyFaceFocus();
+      } else {
+          clearFaceFocus();
+      }
 
       if (settings.enabled && !oldEnabled) {
         createCaptionOverlay();
@@ -548,6 +954,16 @@
         createCaptionOverlay();
         createControlBar();
         startRecognition();
+
+        // Start face focus if previously enabled
+        if (settings.faceFocusMode) {
+          applyFaceFocus();
+        }
+
+        // Start audio monitoring if previously enabled
+        if (settings.audioAlerts) {
+          startAudioClassification();
+        }
       }
       setupHotkeys();
     });

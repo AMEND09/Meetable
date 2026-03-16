@@ -19,7 +19,9 @@
       "https://discord.com/*",
       "https://zoom.us/*"
     ],
-    "js": ["content/content.js"],
+    "js": [
+      "content/content.js"
+    ],
     "css": ["content/content.css"],
     "run_at": "document_idle"
   }],
@@ -41,7 +43,7 @@
     "128": "icons/icon128.png"
   },
   "web_accessible_resources": [{
-    "resources": ["icons/*", "content/content.js", "content/content.css", "utils/*.js"],
+    "resources": ["icons/*", "content/content.js", "content/content.css", "utils/*"],
     "matches": ["<all_urls>"]
   }]
 }

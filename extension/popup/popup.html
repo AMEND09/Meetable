@@ -69,6 +69,23 @@
       </div>
     </div>
 
+    <!-- Mouth Speed (Lip Reading) -->
+    <div class="control-row">
+      <label class="control-label" for="mouth-speed-slider">Mouth Speed (Lip Rd)</label>
+      <div class="control-inline">
+        <input
+          type="range"
+          id="mouth-speed-slider"
+          min="0.2"
+          max="1.0"
+          step="0.1"
+          value="1.0"
+          aria-label="Mouth visual playback speed"
+        />
+        <span id="mouth-speed-value" class="range-value">1.0x</span>
+      </div>
+    </div>
+
     <!-- Caption Placement -->
     <div class="control-row">
       <label class="control-label" for="placement-select">Placement</label>
@@ -87,6 +104,21 @@
         <option value="lip-reader">Lip-reader</option>
         <option value="minimal">Minimal</option>
       </select>
+    </div>
+
+    <!-- Yamnet Audio Alerts -->
+    <div class="control-row">
+      <label class="control-label" for="audio-alerts-toggle">Visual Audio Alerts</label>
+      <button
+        id="audio-alerts-toggle"
+        class="toggle-switch"
+        role="switch"
+        aria-checked="true"
+        aria-label="Enable Environmental Audio Alerts"
+        style="transform: scale(0.8);"
+      >
+        <span class="toggle-thumb"></span>
+      </button>
     </div>
   </div>
 

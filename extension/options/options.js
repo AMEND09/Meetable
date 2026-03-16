@@ -18,6 +18,8 @@ const DEFAULT_SETTINGS = {
   theme: 'dark',
   speakerSensitivity: 0.7,
   overlapSensitivity: 0.7,
+  mouthSpeed: 1.0,
+  audioAlerts: true,
 };
 
 let currentSettings = { ...DEFAULT_SETTINGS };
@@ -59,9 +61,11 @@ function populateForm(settings) {
 
   // Face focus
   setToggle('face-focus-toggle', settings.faceFocusMode);
+  setRange('mouth-speed', 'mouth-speed-display', settings.mouthSpeed, v => parseFloat(v).toFixed(1) + 'x');
 
   // Visual alerts
   setToggle('visual-flash-toggle', settings.visualFlashAlerts);
+  setToggle('audio-alerts-toggle', settings.audioAlerts);
 
   // Hotkeys
   setInput('hotkey-pause', settings.hotkeys.pauseCaptions);
@@ -150,9 +154,11 @@ function bindEvents() {
   bindToggle('overlap-detection-toggle', 'overlapDetection');
   bindToggle('face-focus-toggle', 'faceFocusMode');
   bindToggle('visual-flash-toggle', 'visualFlashAlerts');
+  bindToggle('audio-alerts-toggle', 'audioAlerts');
 
-  // Overlap sensitivity
+  // Sliders
   bindRange('overlap-sensitivity', 'overlap-sensitivity-display', 'overlapSensitivity', v => parseFloat(v), v => Math.round(v * 100) + '%');
+  bindRange('mouth-speed', 'mouth-speed-display', 'mouthSpeed', v => parseFloat(v), v => parseFloat(v).toFixed(1) + 'x');
 
   // Hotkeys
   bindHotkey('hotkey-pause', 'pauseCaptions');
@@ -244,6 +250,23 @@ function selectProfile(profile) {
     card.classList.toggle('selected', isSelected);
     card.setAttribute('aria-checked', String(isSelected));
   });
+
+  if (profile === 'lip-reader') {
+    currentSettings.faceFocusMode = true;
+    currentSettings.mouthSpeed = 0.5;
+    currentSettings.fontSize = 28;
+    currentSettings.showSpeakerLabels = true;
+  } else if (profile === 'minimal') {
+    currentSettings.faceFocusMode = false;
+    currentSettings.showSpeakerLabels = false;
+    currentSettings.visualFlashAlerts = false;
+  } else if (profile === 'caption-only') {
+    currentSettings.faceFocusMode = false;
+    currentSettings.mouthSpeed = 1.0;
+    currentSettings.showSpeakerLabels = true;
+  }
+  
+  populateForm(currentSettings);
   debouncedSave();
 }
 

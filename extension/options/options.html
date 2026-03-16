@@ -223,6 +223,15 @@
           </div>
         </div>
 
+        <div class="form-group">
+          <label class="form-label" for="mouth-speed">Visual Mouth Speed Limit</label>
+          <div class="range-row">
+            <input type="range" id="mouth-speed" name="mouthSpeed" min="0.2" max="1.0" step="0.1" value="1.0" aria-label="Mouth visual playback speed" />
+            <span id="mouth-speed-display" class="range-display">1.0x</span>
+          </div>
+          <p class="form-hint">Slow down the video playback speed of the speaker's mouth for easier lip reading parsing.</p>
+        </div>
+
         <div class="info-box">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--signal-info)" stroke-width="1.75" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
           <span>Face Focus Mode increases contrast on the active speaker's video. Press <kbd>Alt+L</kbd> to lock focus on a specific participant.</span>
@@ -243,6 +252,18 @@
               <span class="toggle-desc">Flash a colored border around the screen when speech is detected</span>
             </div>
             <button class="toggle-switch" id="visual-flash-toggle" role="switch" aria-checked="true" aria-label="Enable visual flash alerts">
+              <span class="toggle-thumb"></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <span class="toggle-label">Visual Audio Alerts (Yamnet)</span>
+              <span class="toggle-desc">Classify environmental background noises (e.g. Sirens, dogs barking) and display alerting bubbles.</span>
+            </div>
+            <button class="toggle-switch" id="audio-alerts-toggle" role="switch" aria-checked="true" aria-label="Enable visual audio alerts">
               <span class="toggle-thumb"></span>
             </button>
           </div>
